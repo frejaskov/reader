@@ -76,101 +76,107 @@ body {
 </div>
 </div>
 
+
 <script>
+// ---------------- DATA ----------------
+const dictionary = {
+  "життя": "life",
+  "любов": "love",
+  "біль": "pain"
+};
+
 const cache = JSON.parse(localStorage.getItem('uk_cache') || '{}');
 const saved = JSON.parse(localStorage.getItem('uk_saved') || '[]');
 
+// ---------------- NORMALIZE ----------------
+function normalize(word){
+  let w = word.toLowerCase().trim();
+  w = w.replace(/[.,!?…]/g, '');
+  const endings = ["ами","ями","ові","еві","ого","ому","ими","ій","ий","а","у","і","о","е","я","ю","ь"];
+  for (let end of endings) {
+    if (w.endsWith(end) && w.length > end.length + 2) {
+      w = w.slice(0, -end.length);
+      break;
+    }
+  }
+  return w;
+}
+
+// ---------------- TRANSLATE ----------------
 async function translate(text){
-  if(cache[text]) return cache[text];
+  const key = text.trim();
+
+  if(dictionary[key]) return dictionary[key];
+
+  const norm = normalize(key);
+  if(dictionary[norm]) return dictionary[norm];
+
+  if(cache[key]) return cache[key];
 
   const r = await fetch(
     'https://translate.googleapis.com/translate_a/single?client=gtx&sl=uk&tl=en&dt=t&q='
-    + encodeURIComponent(text)
+    + encodeURIComponent(key)
   );
   const d = await r.json();
   const t = d[0].map(x=>x[0]).join('');
 
-  cache[text]=t;
+  cache[key] = t;
+  cache[norm] = t;
   localStorage.setItem('uk_cache', JSON.stringify(cache));
+
   return t;
 }
 
-function renderSaved(){
-  document.getElementById('savedWords').innerHTML =
-    saved.map(x =>
-      `<p><b>${x.word}</b><br>${x.translation}</p>`
-    ).join('');
-}
-renderSaved();
-
-function saveWord(word, translation){
-  if(!saved.some(x=>x.word===word)){
+// ---------------- SAVE WORD ----------------
+function saveWord(word, translation, btn){
+  if(!saved.some(x => x.word === word)){
     saved.push({word, translation});
     localStorage.setItem('uk_saved', JSON.stringify(saved));
-    renderSaved();
+
+    btn.innerText = "✅ Saved!";
+    setTimeout(() => btn.innerText = "Save", 1200);
+  } else {
+    btn.innerText = "Already saved";
   }
 }
 
-function exportCSV(){
- let csv="Front,Back\n";
- saved.forEach(x=>{
-   csv += `"${x.word}","${x.translation}"\n`;
- });
- const blob=new Blob([csv],{type:'text/csv'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='anki_vocab.csv';
- a.click();
-}
+// ---------------- POPUPS ----------------
+const wordPopup = document.createElement("div");
+const sentencePopup = document.createElement("div");
 
-function clearWords(){
- localStorage.removeItem('uk_saved');
- location.reload();
-}
+[wordPopup, sentencePopup].forEach(p => {
+  p.style.position = "absolute";
+  p.style.background = "white";
+  p.style.border = "1px solid #ccc";
+  p.style.padding = "10px";
+  p.style.display = "none";
+  p.style.zIndex = 1000;
+  p.style.maxWidth = "90vw";
+  document.body.appendChild(p);
+});
 
-document.getElementById('vocabBtn').onclick = () => {
- document.getElementById('sidebar').classList.toggle('open');
-};
-
-const wordPopup = document.getElementById('wordPopup');
-const sentencePopup = document.getElementById('sentencePopup');
-let activeSentence = null;
-
-let hideTimer = null;
-
-function scheduleHide(){
- clearTimeout(hideTimer);
- hideTimer = setTimeout(() => {
-   wordPopup.style.display='none';
- }, 250);
-}
-
-
-
-  // ---------------- INTERACTION ----------------
+// ---------------- INTERACTION ----------------
 let pressTimer = null;
-let ignoreNextClick = false;
+let ignoreClick = false;
 
 document.querySelectorAll('.ukword').forEach(el => {
 
-  // PRESS & HOLD = sentence
-el.addEventListener('touchstart', (e) => {
-  e.preventDefault(); // 👈 THIS is the key fix
+  // PRESS & HOLD → sentence
+  el.addEventListener('touchstart', (e) => {
     pressTimer = setTimeout(async () => {
 
-      ignoreNextClick = true;
+      ignoreClick = true;
 
       const text = el.closest('p').innerText;
       const tr = await translate(text);
 
       const r = el.getBoundingClientRect();
 
-      sentencePopup.style.display='block';
+      sentencePopup.style.display = 'block';
       sentencePopup.style.left = '10px';
-      sentencePopup.style.top  = (window.scrollY + r.bottom + 20) + 'px';
+      sentencePopup.style.top = (window.scrollY + r.bottom + 20) + 'px';
 
-      sentencePopup.innerHTML =
-        "<b>English</b><hr>" + tr;
+      sentencePopup.innerHTML = tr;
 
     }, 400);
   });
@@ -179,12 +185,12 @@ el.addEventListener('touchstart', (e) => {
     clearTimeout(pressTimer);
   });
 
-  // TAP = word
+  // TAP → word
   el.addEventListener('click', async (e) => {
     e.stopPropagation();
 
-    if(ignoreNextClick){
-      ignoreNextClick = false;
+    if(ignoreClick){
+      ignoreClick = false;
       return;
     }
 
@@ -192,86 +198,24 @@ el.addEventListener('touchstart', (e) => {
     const tr = await translate(word);
     const r = el.getBoundingClientRect();
 
-    wordPopup.style.display='block';
+    wordPopup.style.display = 'block';
     wordPopup.style.left = (window.scrollX + r.left) + 'px';
-    wordPopup.style.top  = (window.scrollY + r.bottom + 10) + 'px';
+    wordPopup.style.top = (window.scrollY + r.bottom + 10) + 'px';
 
     wordPopup.innerHTML =
-  `<b>${word}</b><br>${tr}
-   <hr>
-   <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
+      `<b>${word}</b><br>${tr}
+       <hr>
+       <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
   });
 });
 
-// ---------------- CLOSE BEHAVIOR ----------------
-let justClosed = false;
-
+// ---------------- CLOSE LOGIC ----------------
 document.addEventListener('click', () => {
-
-  if(wordPopup.style.display === 'block' || sentencePopup.style.display === 'block'){
-    wordPopup.style.display = 'none';
-    sentencePopup.style.display = 'none';
-    justClosed = true;
-
-    setTimeout(() => justClosed = false, 200);
-    return;
-  }
-});
- 
-
-  el.addEventListener('mouseleave', scheduleHide);
-
-  // Click word => translate sentence only
-  el.addEventListener('click', async (e) => {
-    e.stopPropagation();
-
-    const paragraph = el.closest('p');
-    const text = paragraph.innerText;
-
-    // Find sentence containing clicked word.
-    const sentences = text.match(/[^.!?…]+[.!?…]?/g) || [text];
-
-    const clickedWord = el.textContent;
-    let target = sentences.find(s => s.includes(clickedWord));
-
-    if(!target) target = sentences[0];
-
-    const sentenceText = target.trim();
-
-    if(sentencePopup.style.display==='block' && activeSentence===sentenceText){
-      sentencePopup.style.display='none'; activeSentence=null;
-      activeSentence=null;
-      return;
-    }
-
-    const tr = await translate(sentenceText);
-
-    const r = el.getBoundingClientRect();
-
-    activeSentence = sentenceText;
-    sentencePopup.style.display='block';
-    sentencePopup.style.left=(window.scrollX+r.left)+'px';
-    sentencePopup.style.top=(window.scrollY+r.bottom+15)+'px';
-
-    sentencePopup.innerHTML =
-  "<b>English</b><hr>" + tr;
-  });
-});
-
-wordPopup.addEventListener('mouseenter', ()=>clearTimeout(hideTimer));
-wordPopup.addEventListener('mouseleave', scheduleHide);
-
-document.addEventListener('click', ()=>{
- sentencePopup.style.display='none'; activeSentence=null;
-});
-
-document.addEventListener('keydown', e=>{
- if(e.key==='Escape'){
-   wordPopup.style.display='none';
-   sentencePopup.style.display='none'; activeSentence=null;
- }
+  wordPopup.style.display = 'none';
+  sentencePopup.style.display = 'none';
 });
 </script>
+
 
 <script>
 const dictionary = {
