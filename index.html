@@ -89,10 +89,7 @@ body {
 
 
 <script>
- document.getElementById('vocabBtn')?.addEventListener('click', () => {
-  const sidebar = document.getElementById('sidebar');
-  sidebar.classList.toggle('open');
-});
+
 // ---------------- DATA ----------------
 const dictionary = {
   "життя": "life",
@@ -239,113 +236,7 @@ document.addEventListener('click', () => {
 </script>
 
 
-<script>
-const dictionary = {
-  "життя": "life",
-  "любов": "love",
-  "біль": "pain"
-};
 
-const cache = JSON.parse(localStorage.getItem('uk_cache') || '{}');
-
-function normalize(word){
-  let w = word.toLowerCase().trim();
-  w = w.replace(/[.,!?…]/g, '');
-  const endings = ["ами","ями","ові","еві","ого","ому","ими","ій","ий","а","у","і","о","е","я","ю","ь"];
-  for (let end of endings) {
-    if (w.endsWith(end) && w.length > end.length + 2) {
-      w = w.slice(0, -end.length);
-      break;
-    }
-  }
-  return w;
-}
-
-async function translate(text){
-  const key = text.trim();
-
-  if(dictionary[key]) return dictionary[key];
-
-  const norm = normalize(key);
-  if(dictionary[norm]) return dictionary[norm];
-
-  if(cache[key]) return cache[key];
-
-  const r = await fetch(
-    'https://translate.googleapis.com/translate_a/single?client=gtx&sl=uk&tl=en&dt=t&q='
-    + encodeURIComponent(key)
-  );
-  const d = await r.json();
-  const t = d[0].map(x=>x[0]).join('');
-
-  cache[key] = t;
-  cache[norm] = t;
-  localStorage.setItem('uk_cache', JSON.stringify(cache));
-
-  return t;
-}
-
-let tapTimer = null;
-let lastTap = 0;
-
-const wordPopup = document.createElement("div");
-const sentencePopup = document.createElement("div");
-
-[wordPopup, sentencePopup].forEach(p => {
-  p.style.position = "absolute";
-  p.style.background = "white";
-  p.style.border = "1px solid #ccc";
-  p.style.padding = "10px";
-  p.style.display = "none";
-  p.style.zIndex = 1000;
-  document.body.appendChild(p);
-});
-
-document.querySelectorAll('.ukword').forEach(el => {
-  el.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const now = Date.now();
-    const timeSince = now - lastTap;
-    const word = el.textContent;
-
-    if (timeSince < 300) {
-      clearTimeout(tapTimer);
-
-      const text = el.closest('p').innerText;
-      const tr = await translate(text);
-
-      const r = el.getBoundingClientRect();
-      sentencePopup.style.display='block';
-      sentencePopup.style.left = '10px';
-      sentencePopup.style.top  = (window.scrollY + r.bottom + 20) + 'px';
-
-      sentencePopup.innerHTML =
-        "<b>Sentence</b><hr>" + text +
-        "<hr><b>Translation</b><hr>" + tr;
-
-    } else {
-      tapTimer = setTimeout(async () => {
-        const tr = await translate(word);
-        const r = el.getBoundingClientRect();
-
-        wordPopup.style.display='block';
-        wordPopup.style.left = (window.scrollX + r.left) + 'px';
-        wordPopup.style.top  = (window.scrollY + r.bottom + 10) + 'px';
-
-        wordPopup.innerHTML =
-          "<b>" + word + "</b><br>" + tr;
-      }, 250);
-    }
-
-    lastTap = now;
-  });
-});
-
-document.addEventListener('click', () => {
-  wordPopup.style.display='none';
-  sentencePopup.style.display='none';
-});
-</script>
 
 </body>
 </html>
