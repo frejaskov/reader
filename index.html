@@ -89,7 +89,10 @@ body {
 
 
 <script>
-
+ document.getElementById('vocabBtn')?.addEventListener('click', () => {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('open');
+});
 // ---------------- DATA ----------------
 const dictionary = {
   "життя": "life",
@@ -225,8 +228,8 @@ document.querySelectorAll('.ukword').forEach(el => {
     `<b>${word}</b><br>${tr}
      <hr>
      <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
-});
 
+});
 
 // ---------------- CLOSE LOGIC ----------------
 document.addEventListener('click', () => {
