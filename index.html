@@ -30,6 +30,14 @@ body{font-family:system-ui,sans-serif;max-width:950px;margin:auto;padding:20px;l
  transition:right .25s;padding:15px;overflow:auto;z-index:10000;
 }
 #sidebar.open{right:0}
+ #sidebar {
+  max-width: 90vw;
+  overflow-y: auto;
+}
+
+body {
+  touch-action: manipulation;
+}
 </style>
 </head>
 <body>
@@ -132,30 +140,75 @@ function scheduleHide(){
 
 document.querySelectorAll('.ukword').forEach(el => {
 
-  el.addEventListener('mouseenter', async () => {
-    clearTimeout(hideTimer);
+  // ---------------- INTERACTION ----------------
+let pressTimer = null;
+let ignoreNextClick = false;
+
+document.querySelectorAll('.ukword').forEach(el => {
+
+  // PRESS & HOLD = sentence
+  el.addEventListener('touchstart', () => {
+    pressTimer = setTimeout(async () => {
+
+      ignoreNextClick = true;
+
+      const text = el.closest('p').innerText;
+      const tr = await translate(text);
+
+      const r = el.getBoundingClientRect();
+
+      sentencePopup.style.display='block';
+      sentencePopup.style.left = '10px';
+      sentencePopup.style.top  = (window.scrollY + r.bottom + 20) + 'px';
+
+      sentencePopup.innerHTML =
+        "<b>English</b><hr>" + tr;
+
+    }, 400);
+  });
+
+  el.addEventListener('touchend', () => {
+    clearTimeout(pressTimer);
+  });
+
+  // TAP = word
+  el.addEventListener('click', async (e) => {
+    e.stopPropagation();
+
+    if(ignoreNextClick){
+      ignoreNextClick = false;
+      return;
+    }
 
     const word = el.textContent;
     const tr = await translate(word);
-
     const r = el.getBoundingClientRect();
 
     wordPopup.style.display='block';
-    wordPopup.style.left=(window.scrollX+r.left)+'px';
-    if(sentencePopup.style.display==='block'){
-    wordPopup.style.top=(window.scrollY+r.top-wordPopup.offsetHeight-10)+'px';
-    } else {
-    wordPopup.style.top=(window.scrollY+r.bottom+5)+'px';
-    }
+    wordPopup.style.left = (window.scrollX + r.left) + 'px';
+    wordPopup.style.top  = (window.scrollY + r.bottom + 10) + 'px';
 
     wordPopup.innerHTML =
       `<b>${word}</b><br>${tr}
-      <hr>
-      <button onclick="saveWord(${
-        JSON.stringify(word)
-      }, ${
-        JSON.stringify(tr)
-      })">Save Word</button>`;
+       <hr>
+       <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
+  });
+});
+
+// ---------------- CLOSE BEHAVIOR ----------------
+let justClosed = false;
+
+document.addEventListener('click', () => {
+
+  if(wordPopup.style.display === 'block' || sentencePopup.style.display === 'block'){
+    wordPopup.style.display = 'none';
+    sentencePopup.style.display = 'none';
+    justClosed = true;
+
+    setTimeout(() => justClosed = false, 200);
+    return;
+  }
+});
   });
 
   el.addEventListener('mouseleave', scheduleHide);
@@ -193,9 +246,7 @@ document.querySelectorAll('.ukword').forEach(el => {
     sentencePopup.style.top=(window.scrollY+r.bottom+15)+'px';
 
     sentencePopup.innerHTML =
-      `<b>Ukrainian</b><hr>${sentenceText}
-       <hr>
-       <b>English</b><hr>${tr}`;
+  "<b>English</b><hr>" + tr;
   });
 });
 
