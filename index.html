@@ -38,6 +38,13 @@ body{font-family:system-ui,sans-serif;max-width:950px;margin:auto;padding:20px;l
 body {
   touch-action: manipulation;
 }
+ .ukword {
+  -webkit-user-select: none;
+  user-select: none;
+}
+ body {
+  -webkit-touch-callout: none;
+}
 </style>
 </head>
 <body>
@@ -147,7 +154,8 @@ let ignoreNextClick = false;
 document.querySelectorAll('.ukword').forEach(el => {
 
   // PRESS & HOLD = sentence
-  el.addEventListener('touchstart', () => {
+el.addEventListener('touchstart', (e) => {
+  e.preventDefault(); // 👈 THIS is the key fix
     pressTimer = setTimeout(async () => {
 
       ignoreNextClick = true;
@@ -189,9 +197,9 @@ document.querySelectorAll('.ukword').forEach(el => {
     wordPopup.style.top  = (window.scrollY + r.bottom + 10) + 'px';
 
     wordPopup.innerHTML =
-      `<b>${word}</b><br>${tr}
-       <hr>
-       <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
+  `<b>${word}</b><br>${tr}
+   <hr>
+   <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
   });
 });
 
