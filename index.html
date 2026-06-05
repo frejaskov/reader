@@ -24,12 +24,21 @@ body{font-family:system-ui,sans-serif;max-width:950px;margin:auto;padding:20px;l
 #sentencePopup{max-width:520px}
 
 #vocabBtn{position:fixed;top:12px;right:12px;z-index:10001}
-#sidebar{
- position:fixed;top:0;right:-360px;width:340px;height:100%;
- background:white;border-left:1px solid #ccc;
- transition:right .25s;padding:15px;overflow:auto;z-index:10000;
+#sidebar {
+  position: fixed;
+  right: -100%;
+  top: 0;
+  width: 90vw;
+  height: 100%;
+  background: white;
+  overflow-y: auto;
+  transition: right 0.3s;
+  z-index: 2000;
 }
-#sidebar.open{right:0}
+
+#sidebar.open {
+  right: 0;
+}
  #sidebar {
   max-width: 90vw;
   overflow-y: auto;
@@ -80,6 +89,10 @@ body {
 
 
 <script>
+ document.getElementById('vocabBtn')?.addEventListener('click', () => {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('open');
+});
 // ---------------- DATA ----------------
 const dictionary = {
   "життя": "life",
@@ -189,27 +202,34 @@ document.querySelectorAll('.ukword').forEach(el => {
 
   // TAP → word
   el.addEventListener('click', async (e) => {
-    e.stopPropagation();
+  e.stopPropagation();
 
-    if(ignoreClick){
-      ignoreClick = false;
-      return;
-    }
+  // If a popup is open → CLOSE ONLY (don't open new one)
+  if(wordPopup.style.display === 'block' || sentencePopup.style.display === 'block'){
+    wordPopup.style.display = 'none';
+    sentencePopup.style.display = 'none';
+    return;
+  }
 
-    const word = el.textContent;
-    const tr = await translate(word);
-    const r = el.getBoundingClientRect();
+  if(ignoreClick){
+    ignoreClick = false;
+    return;
+  }
 
-    wordPopup.style.display = 'block';
-    wordPopup.style.left = (window.scrollX + r.left) + 'px';
-    wordPopup.style.top = (window.scrollY + r.bottom + 10) + 'px';
+  const word = el.textContent;
+  const tr = await translate(word);
+  const r = el.getBoundingClientRect();
 
-    wordPopup.innerHTML =
-      `<b>${word}</b><br>${tr}
-       <hr>
-       <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
-  });
+  wordPopup.style.display = 'block';
+  wordPopup.style.left = (window.scrollX + r.left) + 'px';
+  wordPopup.style.top = (window.scrollY + r.bottom + 10) + 'px';
+
+  wordPopup.innerHTML =
+    `<b>${word}</b><br>${tr}
+     <hr>
+     <button onclick="saveWord('${word}', '${tr}', this)">Save</button>`;
 });
+
 
 // ---------------- CLOSE LOGIC ----------------
 document.addEventListener('click', () => {
